@@ -1,5 +1,5 @@
-# for useing PyQt5, you need to install PyQt5
-# pip install PyQt5
+# This game needs PyQt6
+# pip install PyQt6
 
 # Jjamppong Marble
 import sys
