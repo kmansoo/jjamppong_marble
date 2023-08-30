@@ -23,7 +23,7 @@ class PopupDiceWindow(QDialog):
     parent_geometry = parent.geometry() if parent else QApplication.desktop().availableGeometry()
 
     popup_x = (parent_geometry.width() - popup_width) // 2 + parent_geometry.left()
-    popup_y = (parent_geometry.height() - popup_height) // 2 + parent_geometry.top()
+    popup_y = (parent_geometry.height() - popup_height) // 2 + parent_geometry.top() - 40
 
     self.setGeometry(popup_x, popup_y, popup_width, popup_height)
 
@@ -49,6 +49,69 @@ class PopupDiceWindow(QDialog):
   def on_close(self):
     self.close()
     self.parent().on_dice_number(self.dice_number)
+
+class PopupShowingCardImageWindow(QDialog):
+  def __init__(self, pixmap, parent=None):
+    super().__init__(parent)
+
+    self.setWindowFlags(self.windowFlags() | Qt.WindowType.FramelessWindowHint)  # 타이틀 없는 창으로 설정
+
+    popup_width = pixmap.width()
+    popup_height = pixmap.height()
+
+    parent_geometry = parent.geometry() if parent else QApplication.desktop().availableGeometry()
+
+    popup_x = (parent_geometry.width() - popup_width) // 2 + parent_geometry.left()
+    popup_y = (parent_geometry.height() - popup_height) // 2 + parent_geometry.top() - 40
+
+    self.setGeometry(popup_x, popup_y, popup_width, popup_height)
+
+    layout = QVBoxLayout(self)
+    label = QLabel(self)
+    
+    label.setPixmap(pixmap)
+    label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+    layout.addWidget(label)
+
+    confirm_button = QPushButton("확인", self)
+    confirm_button.clicked.connect(self.close)
+    layout.addWidget(confirm_button)
+
+class PopupShowingWinderWindow(QDialog):
+  def __init__(self, pixmap, parent=None):
+    super().__init__(parent)
+
+    self.setWindowFlags(self.windowFlags() | Qt.WindowType.FramelessWindowHint)  # 타이틀 없는 창으로 설정
+
+    popup_width = 300
+    popup_height = 200
+
+    parent_geometry = parent.geometry() if parent else QApplication.desktop().availableGeometry()
+
+    popup_x = (parent_geometry.width() - popup_width) // 2 + parent_geometry.left()
+    popup_y = (parent_geometry.height() - popup_height) // 2 + parent_geometry.top() - 40
+
+    self.setGeometry(popup_x, popup_y, popup_width, popup_height)
+
+    layout = QVBoxLayout(self)
+
+    text_label = QLabel(self)
+    text_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
+
+    font = QFont("Arial", 36, QFont.Weight.Bold)
+    text_label.setFont(font)
+    text_label.setText("우승!")  # 랜덤한 숫자 설정
+    layout.addWidget(text_label)
+    
+    image_label = QLabel()
+    image_label.setPixmap(pixmap)
+    image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    layout.addWidget(image_label)
+
+    confirm_button = QPushButton("확인", self)
+    confirm_button.clicked.connect(self.close)
+    layout.addWidget(confirm_button)
 
 class JjamppongMarbleApp(QWidget):
   def __init__(self):
@@ -92,6 +155,8 @@ class JjamppongMarbleApp(QWidget):
     self.init_ui()
 
   def reset_game(self):
+    self.current_player = 0
+    
     self.player_position = [
       0, 0, 0
     ]
@@ -104,33 +169,31 @@ class JjamppongMarbleApp(QWidget):
     self.dice_position = (100, 100)  # 주사위 시작 위치 (x, y)
     self.dice_size = (100, 100)  # 주사위 크기 (width, height)
 
-    self.start_button = QtWidgets.QPushButton(self)
-    self.start_button.setText('다시 시작')
-    self.start_button.setMinimumWidth(150)
-    self.start_button.setMinimumHeight(50)
-    self.start_button.move(int(self.board_size['cx'] / 2 - 150 / 2) - 200, 480)
-    self.start_button.clicked.connect(self.on_start_game)
+    self.current_player_label = QLabel(self)
+    self.current_player_label.setText("현재 플레이어: ")
+    self.current_player_label.move(20, 495)
 
     self.throw_dice_button = QtWidgets.QPushButton(self)
     self.throw_dice_button.setText('던지기')
+    self.throw_dice_button.setStyleSheet("background-color: green; font-weight: bold;")  # 버튼 색상 변경
     self.throw_dice_button.setMinimumWidth(150)
     self.throw_dice_button.setMinimumHeight(50)
-    self.throw_dice_button.move(int(self.board_size['cx'] / 2 - 150 / 2), 480)
-    self.throw_dice_button.clicked.connect(self.roll_animation)
+    self.throw_dice_button.move((self.board_size['cx'] // 2 - 150 // 2), 480)
+    self.throw_dice_button.clicked.connect(self.on_throw_dice)
 
-    self.animation_timer = QTimer(self)
-    self.animation_timer.timeout.connect(self.animate_dice)
-    self.animation_frames = []
+    self.restart_button = QtWidgets.QPushButton(self)
+    self.restart_button.setText('다시 시작')
+    self.restart_button.setStyleSheet("background-color: #A30000; color: white; font-weight: bold;")  # 버튼 색상 변경
+    self.restart_button.setMinimumWidth(150)
+    self.restart_button.setMinimumHeight(50)
+    self.restart_button.move((self.board_size['cx'] // 2 - 150 // 2) + 200, 480)
+    self.restart_button.clicked.connect(self.on_restart_game)
 
-    for i in range(1, 7):
-      self.animation_frames.append(QPixmap(f'dice_{i}.png'))
-
-    self.animation_index = 0
-
-  def on_start_game(self):
+  def on_restart_game(self):
     self.reset_game()
+    self.update()
 
-  def roll_animation(self):
+  def on_throw_dice(self):
     if self.player_position[0] == len(self.board_table_position):
       # Game over
       return
@@ -141,65 +204,47 @@ class JjamppongMarbleApp(QWidget):
   def on_dice_number(self, dice_number):
     self.player_position[self.current_player] = self.player_position[self.current_player] + dice_number
 
-    self.current_player = (self.current_player + 1) % self.max_player_num
-    
-    self.update()
+    if self.player_position[self.current_player] >= len(self.board_table_position):
+        self.player_position[self.current_player] = len(self.board_table_position) - 1
 
-  def animate_dice(self):
-    if self.animation_index < len(self.animation_frames):
-      self.update()  # 화면 갱신을 요청하여 주사위 위치 업데이트
-      self.animation_index += 1
+        popup = PopupShowingWinderWindow(self.player_images[self.current_player], self)
+        popup.exec()
+
+        self.reset_game()
     else:
-      self.animation_timer.stop()
-      self.show_result()
+      if self.card_infos[self.player_position[self.current_player]] != None:
+        popup = PopupShowingCardImageWindow(self.card_infos[self.player_position[self.current_player]], self)
+        popup.exec()
 
-  def show_result(self):
-    roll_result = random.randint(1, 6)
-    self.result_dice_image = QPixmap(f'dice_{roll_result}.png')
-    self.update()  # 화면 갱신을 요청하여 결과 주사위 이미지 표시
+      self.current_player = (self.current_player + 1) % self.max_player_num
+
+    self.update()
 
   def draw_background(self, painter):
     painter.drawImage(0, 0, self.background_image)  # 바탕 이미지 표시
 
   def draw_players(self, painter):
+    offset_pos = [
+      [-6, -1], [0, -4], [4, 2]
+    ]
     for i, player in enumerate(self.player_position):
       draw_pos = self.board_table_position[player]
 
-      draw_pos[0] = draw_pos[0] - self.player_images[i].width() // 2
-      draw_pos[1] = draw_pos[1] - self.player_images[i].height() // 2
-
-      painter.drawPixmap(*draw_pos, 
-      self.player_images[i].width(), self.player_images[i].height(), self.player_images[i])
-
-  def draw_dice(self, painter):
-    painter.drawPixmap(*self.dice_position, *self.dice_size, self.dice_image)
-
-  def draw_cards(self, painter):
-    player_pos = self.player_position[0]
-    board_pos = self.board_table_position[player_pos]
-
-    if self.card_infos[player_pos] != None:
-      x = int(self.board_size['cx'] / 2 - self.card_infos[player_pos].width() / 2)
-      y = int(self.board_size['cy'] / 2 - self.card_infos[player_pos].height() / 2)
-
-      painter.drawPixmap(x, y, self.card_infos[player_pos].width(), self.card_infos[player_pos].height(), self.card_infos[player_pos])
-    pass
+      painter.drawPixmap(
+        draw_pos[0] - self.player_images[i].width() // 2 + offset_pos[i][0],
+        draw_pos[1] - self.player_images[i].height() // 2 + offset_pos[i][1], 
+        self.player_images[i].width(), self.player_images[i].height(), self.player_images[i])
+      
+      painter.drawPixmap(
+        100, 480, 
+        self.player_images[self.current_player].width(), self.player_images[self.current_player].height(), 
+        self.player_images[self.current_player])
 
   def paintEvent(self, event):
     painter = QPainter(self)
 
     self.draw_background(painter)
     self.draw_players(painter)
-    self.draw_dice(painter)
-    self.draw_cards(painter)
-
-    # painter.drawImage(0, 0, self.background_image)  # 바탕 이미지 표시
-
-    # if self.animation_index < len(self.animation_frames):
-    #   frame = self.animation_frames[self.animation_index]
-    #   painter.drawPixmap(*self.dice_position, *self.dice_size, frame)
-    # elif hasattr(self, 'result_dice_image'):
-    #   painter.drawPixmap(*self.dice_position, *self.dice_size, self.result_dice_image)
 
 if __name__ == '__main__':
   app = QApplication(sys.argv)
