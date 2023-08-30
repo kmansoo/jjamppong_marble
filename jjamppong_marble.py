@@ -163,7 +163,12 @@ class JjamppongMarbleApp(QWidget):
 
   def draw_players(self, painter):
     for i, player in enumerate(self.player_position):
-      painter.drawPixmap(*self.board_table_position[player], 
+      draw_pos = self.board_table_position[player]
+
+      draw_pos[0] = draw_pos[0] - self.player_images[i].width() // 2
+      draw_pos[1] = draw_pos[1] - self.player_images[i].height() // 2
+
+      painter.drawPixmap(*draw_pos, 
       self.player_images[i].width(), self.player_images[i].height(), self.player_images[i])
 
   def draw_dice(self, painter):
